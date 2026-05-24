@@ -11,15 +11,23 @@ struct FpsCounter {
     previous_time: f64,
 }
 
+// 自定义消息
+#[derive(Message, Debug)]
+struct CustomMessage {
+    // 发出事件的实体 ID
+    entity: Entity,
+    // 其他信息
+    some_infos: f32,
+}
+
 fn main() {
-    (App::new()
+    App::new()
         .add_plugins(DefaultPlugins)
-        // .add_systems(Update, counter_fps)
-        // .add_systems(FixedUpdate, counter_fps)
-        // .add_systems(Update, asset_system)
-        .add_systems(Update, (jump_system, gravity_system))
-        .add_systems(Startup, setup))
-    .run();
+        .add_systems(Startup, setup)
+        .add_systems(Update, (combo_key_system, jump_system, gravity_system))
+        .add_systems(Update, (write_message, read_message))
+        .add_message::<CustomMessage>()
+        .run();
 }
 
 fn setup(
@@ -50,6 +58,34 @@ fn setup(
     ));
 }
 
+fn write_message(
+    mut message: MessageWriter<CustomMessage>,
+    entity_and_transform: Query<Entity, With<Velocity>>,
+) {
+    for entiry in entity_and_transform {
+        message.write(CustomMessage {
+            entity: entiry,
+            some_infos: 123.0,
+        });
+    }
+}
+
+fn read_message(mut messages: MessageReader<CustomMessage>) {
+    for message in messages.read() {
+        println!("message {:?}", message)
+    }
+}
+
+fn combo_key_system(input: Res<ButtonInput<KeyCode>>) {
+    let shift = input.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]);
+    let ctrl = input.any_pressed([KeyCode::ControlLeft, KeyCode::ControlRight]);
+
+    if shift && ctrl && input.just_pressed(KeyCode::KeyA) {
+        println!("Combo key pressed!");
+    }
+}
+
+// 空格跳跃
 fn jump_system(mut query: Query<&mut Velocity>, input: Res<ButtonInput<KeyCode>>) {
     if input.just_pressed(KeyCode::Space) {
         for mut velocity in &mut query {
